@@ -1,0 +1,27 @@
+ogram.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+PS G:\My Drive\GAME\comvu> $env:GEMINI_API_KEY = "AIzaSyCqeLBTouj7mFw1pSAQxk0eeJbeIWA9nto"
+PS G:\My Drive\GAME\comvu> go run main.go "A gentle rainstorm over a neon city skyline"
+🎼 [step 1] Generating music …
+C:\Users\dance\AppData\Local\Programs\Python\Python310\lib\site-packages\google\api_core\_python_version_support.py:266: FutureWarning: You are using a Python version (3.10.11) which Google will stop supporting in new releases of google.api_core once it reaches its end of life (2026-10-04). Please upgrade to the latest Python version, or at least Python 3.11, to continue receiving updates for google.api_core past that date.
+  warnings.warn(message, FutureWarning)
+G:\My Drive\GAME\comvu\compeitou.py:17: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+Traceback (most recent call last):
+  File "G:\My Drive\GAME\comvu\compeitou.py", line 43, in <module>
+    genai.types.TextPart(
+AttributeError: module 'google.generativeai.types' has no attribute 'TextPart'
+2026/01/08 14:43:13 ❌ Command "python" failed: exit status 1
+exit status 1
+
+
+Restart your terminal/VS Code for it to take effect.
+
+Would you like me to show you a Python snippet to verify that the key is being read correctly by your script?

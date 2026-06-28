@@ -1,0 +1,80 @@
+提供された2つのソースコードを確認しました。
+
+compeitou.py: Gemini API（LLM）を使って楽曲生成コードを動的に生成し、output.wav を作成する音楽エンジン。
+
+spectrum_analyzer: WAV（またはCSV）を読み込み、FFT解析を行って Matplotlib で動画（.mp4）として書き出すビジュアライザ。
+
+これらを統合し、**「プロンプトから曲を生成し、そのままビジュアライザ動画を生成する」**一連のパイプライン（プラグインフロー）を構築するための、Goを司令塔にした構成案を提示します。
+
+統合アーキテクチャ案
+Goを**「ワークフロー・エンジン」**として使い、Pythonの2つの機能を連続して実行させます。
+
+1. 統合用 Go コード (main.go)
+GoからPythonスクリプトを順次呼び出し、ファイルパスをリレーさせます。
+
+Go
+
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("使用法: go run main.go \"プロンプト名\"")
+		return
+	}
+
+	prompt := os.Args[1]
+	wavFile := "generated_song.wav"
+	outputVideo := "final_visualizer.mp4"
+
+	// Step 1: 楽曲生成 (compeitou)
+	fmt.Printf("🎼 楽曲生成中: [%s]\n", prompt)
+	cmdGen := exec.Command("python", "compeitou.py", prompt)
+	cmdGen.Stdout = os.Stdout
+	cmdGen.Stderr = os.Stderr
+	if err := cmdGen.Run(); err != nil {
+		log.Fatal("楽曲生成に失敗:", err)
+	}
+
+	// 楽曲生成スクリプトは output.wav をリネームするので、最新のwavを探す処理が必要
+	// 簡易的に output.wav が出ている前提、あるいはリネーム後のファイルを特定
+	generatedWav := prompt + ".wav" // compeitou.py の仕様に合わせる
+
+	// Step 2: ビジュアライザ実行 (spectrum_analyzer)
+	fmt.Println("🎨 ビジュアライザ動画を生成中...")
+	cmdVis := exec.Command("python", "spectrum_analyzer.py", generatedWav, 
+		"--savefilepath", outputVideo, 
+		"--framenumber", "12", 
+		"--windowsize", "4096")
+	
+	cmdVis.Stdout = os.Stdout
+	cmdVis.Stderr = os.Stderr
+	if err := cmdVis.Run(); err != nil {
+		log.Fatal("ビジュアライザ生成に失敗:", err)
+	}
+
+	fmt.Printf("✅ 全工程完了！ 出力ファイル: %s\n", outputVideo)
+}
+2. 修正ポイント：Python側の微調整
+統合をスムーズにするために、以下の調整をお勧めします。
+
+compeitou.py の修正
+現在、ファイル名が user_prompt[:10].wav にリネームされるようになっていますが、Go側で制御しやすくするために、出力ファイル名を固定で指定できる引数を追加すると楽になります。
+
+spectrum_analyzer.py の修正
+Matplotlibの ani.save は非常に時間がかかります。リアルタイムで動作させたい場合は、plt.show() に切り替えるか、Go側でOpenCVなどを使って描画を高速化する「ハイブリッド」構成にするのが次のステップです。
+
+この統合でできること
+自動化: Goを実行するだけで「AI作曲 → 音響解析 → 動画書き出し」が全自動になります。
+
+拡張性: Pythonを「AI作曲ノード」「エフェクトノード」「描画ノード」のように分ければ、Go側でノードを入れ替えるだけで多様なプラグイン構成が作れます。
+
+並列化: Goの goroutine を使えば、1曲目をビジュアライズしている間に2曲目をAIで作曲するといった並列処理が容易です。
+
+次はどのような方向に進めますか？ 「Go側でWebサーバーにしてブラウザからプロンプトを投げたい」や「動画生成を高速化したい」など、やりたい優先順位があれば教えてください。
