@@ -1,10 +1,26 @@
-# 01 Crawl connpass profile
+# ISSUE-01 — TAKE / canonical 176
 
-Collect the public `v0n5ai` profile event-history pages and extract all available event URLs.
+## Goal
+Connpass profileから参加履歴の実データを取得し、canonical JSONLを176件で確定する。
 
-## Acceptance
-- target current history of 176 entries
-- pagination handled
-- duplicate event IDs removed
-- source URL retained
-- raw collection can be rerun
+## Pipeline
+
+`profile → event_urls.jsonl → event evidence → vonsai.jsonl`
+
+## Gate
+
+- exactly 176 events
+- unique event_id
+- person_id = `connpass:vonsai`
+- source_url required
+- retrieved_at required
+- 176未達ならTRANSFORMへ進まない
+
+## Implementation
+
+- `crawler/connpass_profile.py` deterministic pagination + expected-count gate
+- `.github/workflows/crawl-connpass.yml` collection/data gates
+
+## Done
+
+実データ176件が取得され、`data/connpass/vonsai.jsonl` が生成されること。
