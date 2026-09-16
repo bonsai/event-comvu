@@ -1,0 +1,97 @@
+name: Observe Workflow
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy FE
+      - Crawl connpass
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}" > run.json
+          gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" > jobs.json
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          run = json.loads(Path("run.json").read_text())
+          jobs = json.loads(Path("jobs.json").read_text()).get("jobs", [])
+          lines = [
+              "# AW Workflow Recap",
+              "",
+              f"- workflow: {run.get('name')}",
+              f"- run: {run.get('id')}",
+              f"- event: {run.get('event')}",
+              f"- branch: {run.get('head_branch')}",
+              f"- sha: {run.get('head_sha')}",
+              f"- status: {run.get('status')}",
+              f"- conclusion: {run.get('conclusion')}",
+              "",
+              "## Jobs",
+              "",
+          ]
+          for job in jobs:
+              lines.append(f"- {job.get('name')}: {job.get('conclusion')}")
+              for step in job.get('steps') or []:
+                  if step.get('conclusion') in {"failure", "cancelled", "timed_out"}:
+                      lines.append(f"  - FAILED GATE: {step.get('name')} ({step.get('conclusion')})")
+          Path("aw-workflow-recap.md").write_text("\n".join(lines) + "\n")
+          PY
+
+          cat aw-workflow-recap.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Feed failure into AW
+        if: ${{ github.event.workflow_run.conclusion != 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          marker="<!-- aw-workflow:${RUN_ID} -->"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "${marker}" --json number --jq 'length')
+          if [ "$existing" -eq 0 ]; then
+            {
+              echo "$marker"
+              echo "# AW: workflow failure"
+              echo
+              echo "workflow: ${WORKFLOW_NAME}"
+              echo "run: ${RUN_ID}"
+              echo "conclusion: ${CONCLUSION}"
+              echo "head_sha: ${HEAD_SHA}"
+              echo "run_url: ${RUN_URL}"
+              echo
+              echo "## Next action"
+              echo
+              echo "Read the failed gate from the workflow run and solve the earliest failing stage before changing downstream stages."
+            } > issue.md
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "aw: ${WORKFLOW_NAME} run ${RUN_ID} failed" --body-file issue.md --label "bug"
+          fi
+
+      - name: Upload AW recap
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw-workflow-recap-${{ github.event.workflow_run.id }}
+          path: aw-workflow-recap.md
