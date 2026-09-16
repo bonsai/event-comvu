@@ -12,7 +12,13 @@ function setup() {
   textFont('system-ui');
   const select = document.getElementById('mode');
   select.addEventListener('change', e => { mode = e.target.value; selected = null; redraw(); });
-  loadJSON('./data/visualization.json').then(data => { events = data; redraw(); }).catch(err => { loadError = err.message; redraw(); });
+
+  // p5.js loadJSON uses a callback API here; it does not return a Promise.
+  loadJSON(
+    './data/visualization.json',
+    data => { events = Array.isArray(data) ? data : (data.events || []); redraw(); },
+    err => { loadError = `failed to load visualization.json${err ? `: ${err}` : ''}`; redraw(); }
+  );
 }
 
 function semanticKey(event) {
