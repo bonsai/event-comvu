@@ -34,7 +34,11 @@ jobs:
           rm -rf dist
           mkdir -p dist/data/connpass
           cp -R web/. dist/
-          cp data/connpass/sample.jsonl dist/data/connpass/sample.jsonl
+          if [ -s data/connpass/v0n5ai.jsonl ]; then
+            cp data/connpass/v0n5ai.jsonl dist/data/connpass/events.jsonl
+          else
+            cp data/connpass/sample.jsonl dist/data/connpass/events.jsonl
+          fi
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
