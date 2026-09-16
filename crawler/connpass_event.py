@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 EVENT_RE = re.compile(r"https://connpass\.com/event/(\d+)/?")
+PERSON_ID = "connpass:vonsai"
 
 
 class Parser(HTMLParser):
@@ -51,12 +52,11 @@ def normalize(url: str) -> dict:
     event_id = event_match.group(1) if event_match else None
     text = " ".join(p.text)
 
-    # JSON-LD and OpenGraph give stable fallbacks without coupling to CSS.
     title = p.meta.get("og:title") or p.meta.get("twitter:title") or ""
     image = p.meta.get("og:image") or p.meta.get("twitter:image")
 
     return {
-        "person_id": "connpass:v0n5ai",
+        "person_id": PERSON_ID,
         "event_id": f"connpass:{event_id}" if event_id else None,
         "title": title,
         "started_at": None,
@@ -81,7 +81,7 @@ def normalize(url: str) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--urls", default="data/connpass/event_urls.jsonl")
-    ap.add_argument("--out", default="data/connpass/v0n5ai.jsonl")
+    ap.add_argument("--out", default="data/connpass/vonsai.jsonl")
     args = ap.parse_args()
 
     records = {}
@@ -92,17 +92,24 @@ def main() -> None:
             row = json.loads(line)
             records[row["source_url"]] = row["source_url"]
 
+    if not records:
+        raise SystemExit("DATA_GATE_FAILED: no event URLs collected")
+
+    count = 0
     with open(args.out, "w", encoding="utf-8") as out:
         for url in records:
             try:
                 row = normalize(url)
                 out.write(json.dumps(row, ensure_ascii=False) + "\n")
                 out.flush()
+                count += 1
             except Exception as exc:
                 print(f"ERROR {url}: {exc}")
             time.sleep(0.4)
 
-    print(f"normalized={len(records)} out={args.out}")
+    if count == 0:
+        raise SystemExit("DATA_GATE_FAILED: no event evidence normalized")
+    print(f"normalized={count} out={args.out}")
 
 
 if __name__ == "__main__":
