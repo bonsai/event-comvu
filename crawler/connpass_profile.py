@@ -13,7 +13,7 @@ from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
 EVENT_RE = re.compile(r"^/event/(\d+)/?(?:participation/)?$")
-PROFILE = "https://connpass.com/user/v0n5ai/"
+PROFILE = "https://connpass.com/user/vonsai/"
 
 
 class LinkParser(HTMLParser):
@@ -81,7 +81,7 @@ def main() -> None:
         for url in urls:
             event_id = re.search(r"/event/(\d+)/", url).group(1)
             f.write(json.dumps({
-                "person_id": "connpass:v0n5ai",
+                "person_id": "connpass:vonsai",
                 "event_id": f"connpass:{event_id}",
                 "source_url": url,
                 "retrieved_at": retrieved_at,
