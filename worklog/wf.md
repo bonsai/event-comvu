@@ -15,3 +15,13 @@ GitHub Actions execution history observed by AW.
 - Observe Workflow #1 — success
   - run: 35058639022
   - observed Deploy FE #24 and created AW failure issue
+
+## 2026-09-16T05:17:38Z
+
+- Deploy FE — cancelled
+  - run: 35058917591
+  - sha: 6f2d3e6bf46996cdf79274340cdb7758443117cd
+  - event: push
+  - url: https://github.com/bonsai/event-comvu/actions/runs/35058917591
+  - failed gates:
+    - deploy / Setup Go (cancelled)
