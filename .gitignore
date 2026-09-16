@@ -8,6 +8,8 @@
 .env
 *.pem
 *.key
+key.json
+log
 client_secret_*.json
 credentials*.json
 node_modules/
