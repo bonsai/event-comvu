@@ -21,12 +21,28 @@ jobs:
           python-version: '3.12'
 
       - name: Collect event URLs
-        run: python crawler/connpass_profile.py --profile https://connpass.com/user/vonsai/
+        run: python crawler/connpass_profile.py --profile https://connpass.com/user/vonsai/ --out data/connpass/event_urls.jsonl --expected 176
 
       - name: Validate event URLs
         run: |
           test -s data/connpass/event_urls.jsonl
-          echo "EVENT_URL_GATE_OK: $(wc -l < data/connpass/event_urls.jsonl)"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('data/connpass/event_urls.jsonl')
+          rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+          ids = [row.get('event_id') for row in rows]
+          if len(rows) != 176:
+              raise SystemExit(f'EVENT_URL_GATE_FAILED: expected=176 actual={len(rows)}')
+          if len(ids) != len(set(ids)):
+              raise SystemExit('EVENT_URL_GATE_FAILED: duplicate event_id')
+          if any(row.get('person_id') != 'connpass:vonsai' for row in rows):
+              raise SystemExit('EVENT_URL_GATE_FAILED: identity mismatch')
+          if any(not row.get('source_url') or not row.get('retrieved_at') for row in rows):
+              raise SystemExit('EVENT_URL_GATE_FAILED: evidence fields missing')
+          print(f'EVENT_URL_GATE_OK: rows={len(rows)} unique_event_id={len(set(ids))}')
+          PY
 
       - name: Normalize event evidence
         run: python crawler/connpass_event.py --urls data/connpass/event_urls.jsonl --out data/connpass/vonsai.jsonl
@@ -44,8 +60,12 @@ jobs:
           actual = len(rows)
           if actual != expected:
               raise SystemExit(f'POPULATION_GATE_FAILED: expected={expected} actual={actual}')
+          ids = [row.get('event_id') for row in rows]
+          if len(ids) != len(set(ids)):
+              raise SystemExit('DATA_GATE_FAILED: duplicate event_id')
           assert all(row.get('person_id') == 'connpass:vonsai' for row in rows), 'DATA_GATE_FAILED: identity mismatch'
           assert all(row.get('source_url') for row in rows), 'DATA_GATE_FAILED: source_url missing'
+          assert all(row.get('retrieved_at') for row in rows), 'DATA_GATE_FAILED: retrieved_at missing'
           print(f'POPULATION_GATE_OK: rows={actual}')
           PY
 
