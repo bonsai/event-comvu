@@ -12,7 +12,7 @@ function setup() {
   const canvas = createCanvas(windowWidth - 48, Math.max(480, Math.min(720, windowHeight - 170)));
   canvas.parent('canvas');
   textFont('system-ui');
-  loadJSONL('./data/connpass/sample.jsonl');
+  loadJSONL('./data/connpass/events.jsonl');
 }
 
 async function loadJSONL(path) {
@@ -71,7 +71,7 @@ function drawDetail(event) {
   const w = Math.min(430, width - 48), h = 132, x = width - w - 24, y = height - h - 18;
   fill(28); stroke(110); rect(x, y, w, h, 8); noStroke();
   fill(255); textSize(15); text(event.title, x + 14, y + 24, w - 28, 36);
-  fill(170); textSize(11); text(`${event.started_at} · ${event.online ? 'ONLINE' : event.venue || 'venue unknown'}`, x + 14, y + 58);
+  fill(170); textSize(11); text(`${event.started_at || 'time unknown'} · ${event.online ? 'ONLINE' : event.venue || 'venue unknown'}`, x + 14, y + 58);
   text(`organizer: ${event.organizer || 'unknown'}`, x + 14, y + 76);
   fill(210); text(`tags: ${event.tags.join(', ')}`, x + 14, y + 94);
   fill(120); text('source:', x + 14, y + 112); fill(180); text(event.source_url || 'none', x + 56, y + 112, w - 70, 18);
