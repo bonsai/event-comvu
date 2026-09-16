@@ -13,14 +13,5 @@ TAKE → TRANSFORM → SHOW の実行結果をAWが観測し、最初の失敗Ga
 ## Acceptance
 
 ```text
-run
- ↓
-recap
- ↓
-early failed gate
- ↓
-next issue
- ↓
-push
- ↺
+run → recap → earliest failed gate → next issue → push → loop
 ```
