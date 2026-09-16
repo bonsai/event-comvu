@@ -5,7 +5,7 @@ function setup() {
   const canvas = createCanvas(windowWidth - 48, Math.max(420, Math.min(720, windowHeight - 140)));
   canvas.parent('canvas');
   textFont('system-ui');
-  loadJSONL('../data/connpass/sample.jsonl');
+  loadJSONL('./data/connpass/sample.jsonl');
 }
 
 async function loadJSONL(path) {
