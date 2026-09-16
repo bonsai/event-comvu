@@ -25,3 +25,13 @@ GitHub Actions execution history observed by AW.
   - url: https://github.com/bonsai/event-comvu/actions/runs/35058917591
   - failed gates:
     - deploy / Setup Go (cancelled)
+
+## 2026-09-16T05:17:58Z
+
+- Deploy FE — failure
+  - run: 35058931796
+  - sha: 23917e55795a93547b5abb0f78186f2dbaf4c655
+  - event: push
+  - url: https://github.com/bonsai/event-comvu/actions/runs/35058931796
+  - failed gates:
+    - deploy / Validate canonical semantic input (failure)
