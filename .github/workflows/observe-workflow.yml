@@ -9,13 +9,23 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
   issues: write
+
+concurrency:
+  group: workflow-worklog
+  cancel-in-progress: false
 
 jobs:
   observe:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
       - name: Read workflow run
         env:
           GH_TOKEN: ${{ github.token }}
@@ -30,11 +40,11 @@ jobs:
 
           python - <<'PY'
           import json
-          import os
           from pathlib import Path
 
           run = json.loads(Path("run.json").read_text())
           jobs = json.loads(Path("jobs.json").read_text()).get("jobs", [])
+          failed = []
           lines = [
               "# AW Workflow Recap",
               "",
@@ -53,8 +63,11 @@ jobs:
               lines.append(f"- {job.get('name')}: {job.get('conclusion')}")
               for step in job.get('steps') or []:
                   if step.get('conclusion') in {"failure", "cancelled", "timed_out"}:
-                      lines.append(f"  - FAILED GATE: {step.get('name')} ({step.get('conclusion')})")
+                      item = f"{job.get('name')} / {step.get('name')} ({step.get('conclusion')})"
+                      failed.append(item)
+                      lines.append(f"  - FAILED GATE: {item}")
           Path("aw-workflow-recap.md").write_text("\n".join(lines) + "\n")
+          Path("failed-gates.txt").write_text("\n".join(failed))
           PY
 
           cat aw-workflow-recap.md >> "$GITHUB_STEP_SUMMARY"
@@ -83,12 +96,69 @@ jobs:
               echo "head_sha: ${HEAD_SHA}"
               echo "run_url: ${RUN_URL}"
               echo
+              echo "## Failed gate"
+              echo
+              cat failed-gates.txt
+              echo
               echo "## Next action"
               echo
-              echo "Read the failed gate from the workflow run and solve the earliest failing stage before changing downstream stages."
+              echo "Solve the earliest failing stage before changing downstream stages."
             } > issue.md
             gh issue create --repo "$GITHUB_REPOSITORY" --title "aw: ${WORKFLOW_NAME} run ${RUN_ID} failed" --body-file issue.md --label "bug"
           fi
+
+      - name: Record workflow result in worklog
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          run = json.loads(Path("run.json").read_text())
+          jobs = json.loads(Path("jobs.json").read_text()).get("jobs", [])
+          failed = []
+          for job in jobs:
+              for step in job.get('steps') or []:
+                  if step.get('conclusion') in {'failure', 'cancelled', 'timed_out'}:
+                      failed.append(f"{job.get('name')} / {step.get('name')} ({step.get('conclusion')})")
+
+          path = Path('worklog/wf.md')
+          path.parent.mkdir(parents=True, exist_ok=True)
+          if not path.exists():
+              path.write_text('# Workflow Worklog\n\nGitHub Actions execution history observed by AW.\n', encoding='utf-8')
+
+          lines = [
+              '',
+              f"## {run.get('updated_at', run.get('created_at', 'unknown'))}",
+              '',
+              f"- {run.get('name')} — {run.get('conclusion')}",
+              f"  - run: {run.get('id')}",
+              f"  - sha: {run.get('head_sha')}",
+              f"  - event: {run.get('event')}",
+              f"  - url: {run.get('html_url')}",
+          ]
+          if failed:
+              lines.append('  - failed gates:')
+              lines.extend(f'    - {item}' for item in failed)
+          else:
+              lines.append('  - failed gates: none')
+          path.open('a', encoding='utf-8').write_text if False else None
+          with path.open('a', encoding='utf-8') as f:
+              f.write('\n'.join(lines) + '\n')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add worklog/wf.md
+          if git diff --cached --quiet; then
+            echo 'WORKLOG_UNCHANGED'
+            exit 0
+          fi
+          git commit -m "worklog: record ${WORKFLOW_NAME:-workflow} run ${RUN_ID}"
+          git push origin HEAD:master
 
       - name: Upload AW recap
         uses: actions/upload-artifact@v4
