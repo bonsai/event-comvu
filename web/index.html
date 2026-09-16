@@ -3,16 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>event-comvu</title>
+  <title>event-comvu — Semantic Event Map</title>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.min.js"></script>
   <script src="sketch.js" defer></script>
-  <style>html,body{margin:0;background:#111;color:#eee;font-family:system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:24px}h1{margin:0 0 8px}.meta{opacity:.7;margin-bottom:16px}#canvas{display:block}</style>
+  <style>
+    html,body{margin:0;background:#111;color:#eee;font-family:system-ui,sans-serif}
+    main{max-width:1100px;margin:auto;padding:24px}
+    h1{margin:0 0 4px}.meta{opacity:.65;margin-bottom:12px}
+    #canvas{display:block}.source{min-height:24px;margin-top:8px}
+    #source-link{color:#fff;text-decoration:underline}
+  </style>
 </head>
 <body>
 <main>
   <h1>event-comvu</h1>
-  <div class="meta">connpass participation — sample JSONL / FE prototype</div>
+  <div class="meta">Semantic Event Map — topic / community / place / time / format</div>
   <div id="canvas"></div>
+  <div class="source"><a id="source-link" href="#" target="_blank" rel="noopener">Select an event</a></div>
 </main>
 </body>
 </html>
