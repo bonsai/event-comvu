@@ -1,25 +1,43 @@
 name: connpass-history-research
+purpose: turn connpass history into evidence-backed research data and feed the next question back into AW
 seed:
   profile_url: https://connpass.com/user/vonsai/
-  target_person: connpass:v0n5ai
+  target_person: connpass:vonsai
   expected_count: 176
 loop:
   - collect_profile
   - extract_event_urls
+  - validate_event_urls
   - crawl_event_pages
   - extract_evidence
   - normalize_jsonl
-  - validate
+  - validate_data_flow
+  - semantic_normalize
   - statistics
   - graph
   - bqmlite
+  - visualize
+  - evaluate
   - generate_next_research
-outputs:
-  - data/connpass/v0n5ai.jsonl
-  - data/connpass/participation.jsonl
-  - analysis/statistics.json
-  - analysis/graphs
-rules:
+  - record_recap
+gates:
+  event_urls_count_gt: 0
+  normalized_count_gt: 0
+  visualization_count_gt: 0
   source_url_required: true
   retrieved_at_required: true
   do_not_infer_attendance: true
+  identity_consistent: true
+outputs:
+  - data/connpass/vonsai.jsonl
+  - data/connpass/participation.jsonl
+  - web/data/visualization.json
+  - analysis/statistics.json
+  - analysis/graphs
+  - aw/next-research.yaml
+  - issues/recap.md
+feedback:
+  if_gate_fails: stop_and_debug_upstream
+  if_visualization_is_weak: create_visual_evaluation_task
+  if_data_is_sparse: prioritize_evidence_collection
+  if_cluster_or_gap_found: generate_next_research
