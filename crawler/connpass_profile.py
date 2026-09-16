@@ -13,7 +13,8 @@ from urllib.parse import parse_qs, urljoin, urlparse, urlunparse
 from urllib.request import Request, urlopen
 
 EVENT_RE = re.compile(r"^/event/(\d+)/?(?:participation/)?$")
-PROFILE = "https://connpass.com/user/vonsai/"
+PROFILE = "https://connpass.com/user/v0n5ai/"
+PERSON_ID = "connpass:v0n5ai"
 
 
 class LinkParser(HTMLParser):
@@ -100,14 +101,14 @@ def main() -> None:
             match = re.search(r"/event/(\d+)/", url)
             assert match
             f.write(json.dumps({
-                "person_id": "connpass:vonsai",
+                "person_id": PERSON_ID,
                 "event_id": f"connpass:{match.group(1)}",
                 "source_url": url,
                 "retrieved_at": retrieved_at,
             }, ensure_ascii=False) + "\n")
 
     actual = len(urls)
-    print(f"collected={actual} expected={args.expected} out={args.out}")
+    print(f"collected={actual} expected={args.expected} profile={args.profile} out={args.out}")
     if actual != args.expected:
         raise SystemExit(f"POPULATION_GATE_FAILED: expected={args.expected} actual={actual}")
 
