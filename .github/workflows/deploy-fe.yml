@@ -3,12 +3,6 @@ name: Deploy FE
 on:
   push:
     branches: [master]
-    paths:
-      - 'web/**'
-      - 'data/connpass/**'
-      - 'cmd/**'
-      - 'go.mod'
-      - '.github/workflows/deploy-fe.yml'
   workflow_dispatch:
 
 permissions:
@@ -33,16 +27,29 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
+      - name: Validate canonical semantic input
+        run: |
+          test -s data/connpass/vonsai.jsonl
+          echo "SEMANTIC_INPUT_GATE_OK: $(wc -l < data/connpass/vonsai.jsonl)"
       - name: Build semantic visualization data
         run: |
           rm -rf web/data
-          if [ -s data/connpass/v0n5ai.jsonl ]; then
-            go run ./cmd/semantic-normalize -in data/connpass/v0n5ai.jsonl -out web/data/visualization.json
-          else
-            mkdir -p web/data
-            go run ./cmd/semantic-normalize -in data/connpass/sample.jsonl -out web/data/visualization.json
-          fi
+          mkdir -p web/data
+          go run ./cmd/semantic-normalize -in data/connpass/vonsai.jsonl -out web/data/visualization.json
           go run ./cmd/semantic-analyze -in web/data/visualization.json -out web/data/semantic.json
+      - name: Validate visualization data
+        run: |
+          test -s web/data/visualization.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('web/data/visualization.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          events = data.get('events') if isinstance(data, dict) else data
+          if not isinstance(events, list) or not events:
+              raise SystemExit('DATA_GATE_FAILED: visualization events are empty')
+          print(f'DATA_GATE_OK: events={len(events)}')
+          PY
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Build static site
