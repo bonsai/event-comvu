@@ -1,33 +1,34 @@
 name: connpass-research
-version: 2
+version: 3
 
 seed:
-  profile: https://connpass.com/user/vonsai/
-  person_id: connpass:vonsai
+  profile: https://connpass.com/user/v0n5ai/
+  person_id: connpass:v0n5ai
+  expected_events: 176
 
 pipeline:
   - id: take
-    command: python crawler/connpass_profile.py --profile https://connpass.com/user/vonsai/ --out data/connpass/event_urls.jsonl --expected 176
+    command: python crawler/connpass_profile.py --profile https://connpass.com/user/v0n5ai/ --out data/connpass/event_urls.jsonl --expected 176
     output: data/connpass/event_urls.jsonl
     gate:
       count: 176
       unique: event_id
   - id: evidence
-    command: python crawler/connpass_event.py --urls data/connpass/event_urls.jsonl --out data/connpass/vonsai.jsonl
-    output: data/connpass/vonsai.jsonl
+    command: python crawler/connpass_event.py --urls data/connpass/event_urls.jsonl --out data/connpass/v0n5ai.jsonl
+    output: data/connpass/v0n5ai.jsonl
     gate:
       count: 176
       required_fields: [event_id, person_id, source_url, retrieved_at]
   - id: transform
     command: go run ./cmd/semantic-normalize
-    input: data/connpass/vonsai.jsonl
+    input: data/connpass/v0n5ai.jsonl
   - id: show
     command: go run ./cmd/semantic-analyze
     output: web/data/visualization.json
 
 rules:
   population: 176
-  canonical: data/connpass/vonsai.jsonl
+  canonical: data/connpass/v0n5ai.jsonl
   source_of_truth: jsonl
   output_from_sql: true
   stop_on_failed_gate: true
