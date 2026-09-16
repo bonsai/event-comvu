@@ -1,64 +1,66 @@
 let events = [];
-let loadError = '';
 let selected = null;
-let mode = 'topic';
 let positions = [];
-const modes = ['topic', 'community', 'format', 'place'];
+let activeTag = null;
 
 function setup() {
-  const canvas = createCanvas(windowWidth - 40, Math.max(560, Math.min(760, windowHeight - 145)));
+  const canvas = createCanvas(Math.max(520, windowWidth - 360), Math.max(560, Math.min(760, windowHeight - 145)));
   canvas.parent('canvas'); textFont('system-ui');
-  document.getElementById('mode').addEventListener('change', e => { mode = e.target.value; selected = null; redraw(); });
   loadJSON('./data/visualization.json', data => {
     events = Array.isArray(data) ? data : (data.events || []);
-    updateOverview(); redraw();
-  }, err => { loadError = `failed to load visualization.json${err ? `: ${err}` : ''}`; redraw(); });
+    buildTagCloud(); redraw();
+  }, err => { fill(255); textSize(16); text(`failed to load visualization.json`,20,35); });
 }
 
-function semanticKey(event) {
-  if (mode === 'topic') return (event.technology || ['Community'])[0] || 'Community';
-  if (mode === 'community') return (event.community || ['Unknown'])[0] || 'Unknown';
-  if (mode === 'format') return event.format || 'Unknown';
-  return event.place || 'Unknown';
+function tagsOf(event) {
+  const out=[];
+  for (const key of ['technology','community','features']) {
+    if (Array.isArray(event[key])) out.push(...event[key]);
+  }
+  if (event.format) out.push(event.format);
+  return [...new Set(out.filter(Boolean).map(String))];
 }
 
-function years() {
-  const ys = events.map(e => e.started_at ? new Date(e.started_at).getFullYear() : null).filter(Boolean);
-  return ys.length ? [Math.min(...ys), Math.max(...ys)] : [new Date().getFullYear(), new Date().getFullYear()];
+function shared(a,b) {
+  const aa=tagsOf(a), bb=new Set(tagsOf(b));
+  return aa.some(x=>bb.has(x));
 }
 
-function updateOverview() {
-  const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
-  const domains = new Set();
-  events.forEach(e => { try { if (e.source_url) domains.add(new URL(e.source_url).hostname); } catch (_) {} });
-  const avg = events.length ? events.reduce((s,e) => s + (e.completeness || 0), 0) / events.length : 0;
-  const graph = buildGraph();
-  const gaps = { organizer:0, venue:0, image:0, flyer:0, time:0 };
-  events.forEach(e => { if (!e.organizer) gaps.organizer++; if (!e.venue && !e.place) gaps.venue++; if (!e.image_url) gaps.image++; if (!e.flyer_url) gaps.flyer++; if (!e.started_at) gaps.time++; });
-  set('event-count', events.length); set('cluster-count', graph.components); set('source-count', domains.size);
-  set('evidence-count', `${Math.round(avg * 100)}%`); set('evidence-sub', `average completeness · ${events.filter(e => (e.completeness || 0) >= 0.8).length}/${events.length} strong`);
-  const box = document.getElementById('gaps'); if (!box) return;
-  box.innerHTML = '<span class="gap"><b>GAPS</b></span>' + Object.entries(gaps).filter(([,n]) => n > 0).map(([k,n]) => `<span class="gap">${k} <b>${n}</b></span>`).join('');
-}
-
-function shared(a,b) { const af=a.features||a.technology||[], bf=b.features||b.technology||[]; return af.some(x=>bf.includes(x)) || (a.community&&b.community&&a.community.some(x=>b.community.includes(x))); }
 function buildGraph() {
-  const seen = new Array(events.length).fill(false); let components = 0;
-  for (let i=0;i<events.length;i++) if(!seen[i]) { components++; const q=[i]; seen[i]=true; while(q.length){const a=q.pop(); for(let j=0;j<events.length;j++) if(!seen[j]&&shared(events[a],events[j])){seen[j]=true;q.push(j);}} } }
-  return {components};
+  const seen=new Array(events.length).fill(false), cluster=new Array(events.length).fill(-1); let c=0;
+  for(let i=0;i<events.length;i++) if(!seen[i]) {
+    const q=[i]; seen[i]=true; cluster[i]=c;
+    while(q.length){const a=q.pop(); for(let j=0;j<events.length;j++) if(!seen[j]&&shared(events[a],events[j])){seen[j]=true;cluster[j]=c;q.push(j);}}
+    c++;
+  }
+  return {cluster,count:c};
 }
 
-function eventPosition(event,index) {
-  const [minY,maxY]=years(); const d=event.started_at?new Date(event.started_at):null;
-  const t=d&&!Number.isNaN(d.getTime())?(d.getFullYear()-minY)/Math.max(1,maxY-minY):0.5;
-  const keys=[...new Set(events.map(semanticKey))].sort(); const xi=Math.max(0,keys.indexOf(semanticKey(event)));
-  const x=keys.length<=1?width/2:75+(width-150)*xi/(keys.length-1); const y=92+(height-145)*(1-Math.max(0,Math.min(1,t)));
-  const angle=index*2.399963,jitter=Math.min(22,width/Math.max(20,events.length*.8)); return {x:x+Math.cos(angle)*jitter,y:y+Math.sin(angle)*jitter};
+function buildTagCloud() {
+  const counts=new Map(); events.forEach(e=>tagsOf(e).forEach(t=>counts.set(t,(counts.get(t)||0)+1)));
+  const tags=[...counts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,36);
+  const box=document.getElementById('tags'); if(!box)return;
+  box.innerHTML=tags.map(([tag,n])=>`<span class="tag" data-tag="${escapeHtml(tag)}" style="font-size:${10+Math.min(12,n*1.5)}px;opacity:${activeTag===tag?1:.62+Math.min(.35,n/20)}">${escapeHtml(tag)} <small>${n}</small></span>`).join('');
+  box.querySelectorAll('.tag').forEach(el=>el.addEventListener('click',()=>{activeTag=el.dataset.tag;selected=null;buildTagCloud();redraw();}));
 }
-function draw(){background(11);if(loadError){fill(255);textSize(16);text(`JSON error: ${loadError}`,20,35);return;}positions=events.map(eventPosition);fill(255);textSize(16);text(`Semantic Event Space / ${events.length} events`,20,27);fill(130);textSize(11);text(`X = ${mode} · Y = time · edge = shared feature · node size = evidence completeness`,20,47);drawAxes();drawEdges();drawNodes();if(selected)drawDetail(selected);}
-function drawAxes(){const[minY,maxY]=years();stroke(55);line(60,72,width-30,72);line(60,72,60,height-35);noStroke();fill(100);textSize(10);text(mode,width-75,62);for(let i=0;i<=Math.min(6,maxY-minY);i++){const year=minY+i,y=92+(height-145)*(1-(year-minY)/Math.max(1,maxY-minY));fill(85);text(year,20,y+4);stroke(30);line(60,y,width-30,y);noStroke();}const keys=[...new Set(events.map(semanticKey))].sort();keys.forEach((key,i)=>{const x=keys.length<=1?width/2:75+(width-150)*i/(keys.length-1);push();translate(x,height-18);rotate(-.28);fill(125);text(key.slice(0,26),0,0);pop();});}
-function drawEdges(){for(let i=0;i<events.length;i++)for(let j=i+1;j<events.length;j++)if(shared(events[i],events[j])){const a=positions[i],b=positions[j];stroke(45);line(a.x,a.y,b.x,b.y);}}
-function drawNodes(){events.forEach((event,i)=>{const p=positions[i],active=selected===event,r=7+(event.completeness||0)*13;noStroke();fill(205);circle(p.x,p.y,active?r+9:r);if(active){noFill();stroke(255);strokeWeight(2);circle(p.x,p.y,r+10);}noStroke();fill(225);textSize(10);text((event.title||event.event_id||'Untitled').slice(0,34),p.x+r/2+5,p.y-2);});}
-function drawDetail(event){const w=Math.min(470,width-32),h=168,x=width-w-16,y=height-h-12;fill(24);stroke(130);rect(x,y,w,h,8);noStroke();fill(255);textSize(14);text(event.title||'Untitled',x+14,y+23,w-28,34);fill(165);textSize(10);text(`${event.started_at||'time unknown'} · ${event.format||'format unknown'} · ${event.place||event.venue||'place unknown'}`,x+14,y+57);text(`community: ${(event.community||[]).join(', ')||'—'} · technology: ${(event.technology||[]).join(', ')||'—'}`,x+14,y+75,w-28,28);text(`evidence: ${Math.round((event.completeness||0)*100)}%`,x+14,y+105);fill(120);text(`source: ${event.source_url||'none'}`,x+14,y+126,w-28,16);fill(150);text(event.image_url?'image: available':'image: —',x+14,y+145);text(event.flyer_url?'flyer: available':'flyer: —',x+105,y+145);}
-function mousePressed(){for(let i=0;i<events.length;i++){const p=positions[i];if(dist(mouseX,mouseY,p.x,p.y)<24){selected=events[i];const link=document.getElementById('source-link');link.href=selected.source_url||'#';link.textContent=selected.source_url?'Open source event ↗':'No source URL';redraw();return;}}}
-function windowResized(){resizeCanvas(windowWidth-40,Math.max(560,Math.min(760,windowHeight-145)));redraw();}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function years(){const ys=events.map(e=>e.started_at?new Date(e.started_at).getFullYear():null).filter(Boolean);return ys.length?[Math.min(...ys),Math.max(...ys)]:[new Date().getFullYear(),new Date().getFullYear()];}
+function eventPosition(event,index,graph){
+  const [minY,maxY]=years(), d=event.started_at?new Date(event.started_at):null;
+  const t=d&&!Number.isNaN(d.getTime())?(d.getFullYear()-minY)/Math.max(1,maxY-minY):.5;
+  const c=graph.cluster[index], clusterMembers=graph.cluster.map((x,i)=>x===c?i:-1).filter(i=>i>=0), rank=clusterMembers.indexOf(index), n=clusterMembers.length;
+  const cols=Math.max(1,Math.ceil(Math.sqrt(n))), col=rank%cols,row=Math.floor(rank/cols);
+  const clusters=Math.max(1,graph.count), baseX=80+(width-140)*(c+.5)/clusters, baseY=95+(height-150)*(1-t);
+  return {x:baseX+(col-(cols-1)/2)*22,y:baseY+(row-Math.floor((n-1)/cols)/2)*22};
+}
+function draw(){background(11);const graph=buildGraph();positions=events.map((e,i)=>eventPosition(e,i,graph));
+  fill(255);noStroke();textSize(16);text(`Event Clusters / ${events.length} events`,20,27);fill(110);textSize(11);text(`${graph.count} semantic clusters · click a node for metadata`,20,47);
+  drawAxes();drawEdges(graph);drawNodes();
+}
+function drawAxes(){const[minY,maxY]=years();stroke(35);line(60,72,60,height-35);for(let i=0;i<=Math.min(6,maxY-minY);i++){const y=92+(height-145)*(1-(minY+i-minY)/Math.max(1,maxY-minY));noStroke();fill(90);text(minY+i,20,y+4);stroke(28);line(60,y,width-30,y);}}
+function drawEdges(graph){for(let i=0;i<events.length;i++)for(let j=i+1;j<events.length;j++)if(shared(events[i],events[j])){if(activeTag&&!tagsOf(events[i]).includes(activeTag)&&!tagsOf(events[j]).includes(activeTag))continue;const a=positions[i],b=positions[j];stroke(42);line(a.x,a.y,b.x,b.y);}}
+function drawNodes(){events.forEach((event,i)=>{const p=positions[i],tags=tagsOf(event),match=!activeTag||tags.includes(activeTag),active=selected===event,r=7+(event.completeness||0)*12;noStroke();fill(match?210:55);circle(p.x,p.y,active?r+9:r);if(active){noFill();stroke(255);strokeWeight(2);circle(p.x,p.y,r+10);}if(match){noStroke();fill(225);textSize(9);text((event.title||event.event_id||'Untitled').slice(0,30),p.x+r/2+5,p.y-2);}});}
+function showMetadata(event){const box=document.getElementById('metadata');if(!box)return;const tags=tagsOf(event);box.innerHTML=`<div class="meta-row"><span class="meta-key">title</span><br><span class="meta-value">${escapeHtml(event.title||'—')}</span></div><div class="meta-row"><span class="meta-key">date</span> ${escapeHtml(event.started_at||'—')}</div><div class="meta-row"><span class="meta-key">organizer</span> ${escapeHtml(event.organizer||'—')}</div><div class="meta-row"><span class="meta-key">venue</span> ${escapeHtml(event.venue||event.place||'—')}</div><div class="meta-row"><span class="meta-key">format</span> ${escapeHtml(event.format||'—')}</div><div class="meta-row"><span class="meta-key">tags</span> ${tags.map(escapeHtml).join(', ')||'—'}</div><div class="meta-row"><span class="meta-key">evidence</span> ${Math.round((event.completeness||0)*100)}%</div><div class="meta-row source"><span class="meta-key">source</span> ${event.source_url?`<a href="${escapeHtml(event.source_url)}" target="_blank" rel="noopener">open ↗</a>`:'—'}</div>`;}
+function mousePressed(){for(let i=0;i<events.length;i++){const p=positions[i];if(dist(mouseX,mouseY,p.x,p.y)<24){selected=events[i];showMetadata(selected);redraw();return;}}}
+function windowResized(){resizeCanvas(Math.max(520,windowWidth-360),Math.max(560,Math.min(760,windowHeight-145)));redraw();}
