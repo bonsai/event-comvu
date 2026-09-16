@@ -42,6 +42,7 @@ jobs:
             mkdir -p web/data
             go run ./cmd/semantic-normalize -in data/connpass/sample.jsonl -out web/data/visualization.json
           fi
+          go run ./cmd/semantic-analyze -in web/data/visualization.json -out web/data/semantic.json
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Build static site
