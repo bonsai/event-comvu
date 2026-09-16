@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+env:
+  CONNPASS_PROFILE: https://connpass.com/user/v0n5ai/
+  CONNPASS_PERSON_ID: connpass:v0n5ai
+  EXPECTED_EVENTS: 176
+
 jobs:
   crawl:
     runs-on: ubuntu-latest
@@ -21,23 +26,25 @@ jobs:
           python-version: '3.12'
 
       - name: Collect event URLs
-        run: python crawler/connpass_profile.py --profile https://connpass.com/user/vonsai/ --out data/connpass/event_urls.jsonl --expected 176
+        run: python crawler/connpass_profile.py --profile "$CONNPASS_PROFILE" --out data/connpass/event_urls.jsonl --expected "$EXPECTED_EVENTS"
 
       - name: Validate event URLs
         run: |
           test -s data/connpass/event_urls.jsonl
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
 
           path = Path('data/connpass/event_urls.jsonl')
           rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+          expected = int(os.environ['EXPECTED_EVENTS'])
+          person_id = os.environ['CONNPASS_PERSON_ID']
           ids = [row.get('event_id') for row in rows]
-          if len(rows) != 176:
-              raise SystemExit(f'EVENT_URL_GATE_FAILED: expected=176 actual={len(rows)}')
+          if len(rows) != expected:
+              raise SystemExit(f'EVENT_URL_GATE_FAILED: expected={expected} actual={len(rows)}')
           if len(ids) != len(set(ids)):
               raise SystemExit('EVENT_URL_GATE_FAILED: duplicate event_id')
-          if any(row.get('person_id') != 'connpass:vonsai' for row in rows):
+          if any(row.get('person_id') != person_id for row in rows):
               raise SystemExit('EVENT_URL_GATE_FAILED: identity mismatch')
           if any(not row.get('source_url') or not row.get('retrieved_at') for row in rows):
               raise SystemExit('EVENT_URL_GATE_FAILED: evidence fields missing')
@@ -45,34 +52,38 @@ jobs:
           PY
 
       - name: Normalize event evidence
-        run: python crawler/connpass_event.py --urls data/connpass/event_urls.jsonl --out data/connpass/vonsai.jsonl
+        run: python crawler/connpass_event.py --urls data/connpass/event_urls.jsonl --out data/connpass/v0n5ai.jsonl
 
-      - name: Validate 176-event population
+      - name: Validate canonical population
         run: |
-          test -s data/connpass/vonsai.jsonl
+          test -s data/connpass/v0n5ai.jsonl
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
 
-          path = Path('data/connpass/vonsai.jsonl')
+          path = Path('data/connpass/v0n5ai.jsonl')
           rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
-          expected = 176
+          expected = int(os.environ['EXPECTED_EVENTS'])
+          person_id = os.environ['CONNPASS_PERSON_ID']
           actual = len(rows)
           if actual != expected:
               raise SystemExit(f'POPULATION_GATE_FAILED: expected={expected} actual={actual}')
           ids = [row.get('event_id') for row in rows]
           if len(ids) != len(set(ids)):
               raise SystemExit('DATA_GATE_FAILED: duplicate event_id')
-          assert all(row.get('person_id') == 'connpass:vonsai' for row in rows), 'DATA_GATE_FAILED: identity mismatch'
-          assert all(row.get('source_url') for row in rows), 'DATA_GATE_FAILED: source_url missing'
-          assert all(row.get('retrieved_at') for row in rows), 'DATA_GATE_FAILED: retrieved_at missing'
-          print(f'POPULATION_GATE_OK: rows={actual}')
+          if any(row.get('person_id') != person_id for row in rows):
+              raise SystemExit('DATA_GATE_FAILED: identity mismatch')
+          if any(not row.get('source_url') for row in rows):
+              raise SystemExit('DATA_GATE_FAILED: source_url missing')
+          if any(not row.get('retrieved_at') for row in rows):
+              raise SystemExit('DATA_GATE_FAILED: retrieved_at missing')
+          print(f'POPULATION_GATE_OK: rows={actual} person_id={person_id}')
           PY
 
       - name: Commit evidence JSONL
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/connpass/event_urls.jsonl data/connpass/vonsai.jsonl
+          git add data/connpass/event_urls.jsonl data/connpass/v0n5ai.jsonl
           git diff --cached --quiet || git commit -m 'data: update connpass evidence'
           git push
