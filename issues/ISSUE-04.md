@@ -4,7 +4,6 @@
 TAKE → TRANSFORM → SHOW の実行結果をAWが観測し、最初の失敗Gateを次のIssueにする。
 
 ## Rules
-
 1. workflow runを実測する
 2. earliest failed gateを特定する
 3. 下流UIで上流データ欠損を隠さない
@@ -18,7 +17,7 @@ run
  ↓
 recap
  ↓
-earliest failed gate
+early failed gate
  ↓
 next issue
  ↓
