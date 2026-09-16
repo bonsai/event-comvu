@@ -29,10 +29,22 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Validate canonical semantic input
+      - name: Validate canonical 176-event population
         run: |
           test -s data/connpass/vonsai.jsonl
-          echo "SEMANTIC_INPUT_GATE_OK: $(wc -l < data/connpass/vonsai.jsonl)"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('data/connpass/vonsai.jsonl')
+          rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+          expected = 176
+          actual = len(rows)
+          if actual != expected:
+              raise SystemExit(f'POPULATION_GATE_FAILED: expected={expected} actual={actual}')
+          print(f'POPULATION_GATE_OK: rows={actual}')
+          PY
+      - name: Build statistics
+        run: go run ./cmd/statistics -in data/connpass/vonsai.jsonl -out analysis/statistics.json
       - name: Build semantic visualization data
         run: |
           rm -rf web/data
@@ -48,8 +60,8 @@ jobs:
           path = Path('web/data/visualization.json')
           data = json.loads(path.read_text(encoding='utf-8'))
           events = data.get('events') if isinstance(data, dict) else data
-          if not isinstance(events, list) or not events:
-              raise SystemExit('DATA_GATE_FAILED: visualization events are empty')
+          if not isinstance(events, list) or len(events) != 176:
+              raise SystemExit(f'DATA_GATE_FAILED: visualization events={len(events) if isinstance(events, list) else 0}, expected=176')
           print(f'DATA_GATE_OK: events={len(events)}')
           PY
       - name: Configure Pages
