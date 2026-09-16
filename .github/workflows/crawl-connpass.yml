@@ -31,7 +31,7 @@ jobs:
       - name: Normalize event evidence
         run: python crawler/connpass_event.py --urls data/connpass/event_urls.jsonl --out data/connpass/vonsai.jsonl
 
-      - name: Validate evidence JSONL
+      - name: Validate 176-event population
         run: |
           test -s data/connpass/vonsai.jsonl
           python - <<'PY'
@@ -40,10 +40,13 @@ jobs:
 
           path = Path('data/connpass/vonsai.jsonl')
           rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
-          assert rows, 'DATA_GATE_FAILED: evidence JSONL is empty'
+          expected = 176
+          actual = len(rows)
+          if actual != expected:
+              raise SystemExit(f'POPULATION_GATE_FAILED: expected={expected} actual={actual}')
           assert all(row.get('person_id') == 'connpass:vonsai' for row in rows), 'DATA_GATE_FAILED: identity mismatch'
           assert all(row.get('source_url') for row in rows), 'DATA_GATE_FAILED: source_url missing'
-          print(f'EVIDENCE_GATE_OK: rows={len(rows)}')
+          print(f'POPULATION_GATE_OK: rows={actual}')
           PY
 
       - name: Commit evidence JSONL
