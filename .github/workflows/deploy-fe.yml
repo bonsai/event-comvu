@@ -12,6 +12,10 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  CANONICAL_DATA: data/connpass/v0n5ai.jsonl
+  EXPECTED_EVENTS: 176
+
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -29,39 +33,45 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Validate canonical 176-event population
+      - name: Validate canonical population
         run: |
-          test -s data/connpass/vonsai.jsonl
+          test -s "$CANONICAL_DATA"
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
-          path = Path('data/connpass/vonsai.jsonl')
+          path = Path(os.environ['CANONICAL_DATA'])
           rows = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
-          expected = 176
+          expected = int(os.environ['EXPECTED_EVENTS'])
           actual = len(rows)
+          ids = [row.get('event_id') for row in rows]
           if actual != expected:
               raise SystemExit(f'POPULATION_GATE_FAILED: expected={expected} actual={actual}')
+          if len(ids) != len(set(ids)):
+              raise SystemExit('DATA_GATE_FAILED: duplicate event_id')
+          if any(not row.get('source_url') or not row.get('retrieved_at') for row in rows):
+              raise SystemExit('DATA_GATE_FAILED: evidence fields missing')
           print(f'POPULATION_GATE_OK: rows={actual}')
           PY
       - name: Build statistics
-        run: go run ./cmd/statistics -in data/connpass/vonsai.jsonl -out analysis/statistics.json
+        run: go run ./cmd/statistics -in "$CANONICAL_DATA" -out analysis/statistics.json
       - name: Build semantic visualization data
         run: |
           rm -rf web/data
           mkdir -p web/data
-          go run ./cmd/semantic-normalize -in data/connpass/vonsai.jsonl -out web/data/visualization.json
+          go run ./cmd/semantic-normalize -in "$CANONICAL_DATA" -out web/data/visualization.json -expected "$EXPECTED_EVENTS"
           go run ./cmd/semantic-analyze -in web/data/visualization.json -out web/data/semantic.json
       - name: Validate visualization data
         run: |
           test -s web/data/visualization.json
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
           path = Path('web/data/visualization.json')
           data = json.loads(path.read_text(encoding='utf-8'))
           events = data.get('events') if isinstance(data, dict) else data
-          if not isinstance(events, list) or len(events) != 176:
-              raise SystemExit(f'DATA_GATE_FAILED: visualization events={len(events) if isinstance(events, list) else 0}, expected=176')
+          expected = int(os.environ['EXPECTED_EVENTS'])
+          if not isinstance(events, list) or len(events) != expected:
+              raise SystemExit(f'DATA_GATE_FAILED: visualization events={len(events) if isinstance(events, list) else 0}, expected={expected}')
           print(f'DATA_GATE_OK: events={len(events)}')
           PY
       - name: Configure Pages
