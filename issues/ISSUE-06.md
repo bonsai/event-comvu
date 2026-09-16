@@ -1,14 +1,15 @@
-# 06 Graph the history
+# ISSUE-06 — SQL / reproducibility
 
-Create visualizations from generated statistics.
+## Goal
+Canonical dataからSQLで統計・Semantic Viewを再生成できる状態を固定する。
 
-## Initial graphs
-- monthly event count
-- yearly event count
-- weekday × hour
-- organizer frequency
-- technology frequency
-- online / venue
-- geography
+## Requirements
 
-The graphs must be derived from JSONL, not manually curated.
+- 176件を母集団にする
+- Census / Semantic / Relation / Query Result
+- event_id → source_url / retrieved_at
+- query結果は再現可能
+
+## Gate
+
+canonical 176 gateを通過しない場合は実行しない。
