@@ -25,11 +25,11 @@ next issue
 
 ```text
 TAKE
-  connpass profile
+  connpass profile: v0n5ai
     ↓
   event evidence
     ↓
-  canonical data/connpass/vonsai.jsonl
+  canonical data/connpass/v0n5ai.jsonl
     ↓
   DATA GATE: COUNT = 176
 
@@ -75,4 +75,4 @@ OBSERVE
 
 ## Current gate
 
-The `Crawl connpass` workflow already defines profile collection → event evidence → `vonsai.jsonl` → 176 validation → commit. The repository currently has no verified 176-row canonical dataset, so TAKE remains the active gate.
+The actual public connpass identity is `v0n5ai`; public connpass pages currently show that account as a participant. citeturn2search0turn2search1 The collector and deployment pipeline are now aligned to that identity. The next gate is an actual Crawl run producing exactly 176 canonical rows.
