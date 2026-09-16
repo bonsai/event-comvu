@@ -2,7 +2,7 @@ name: Deploy FE
 
 on:
   push:
-    branches: [fe-deploy]
+    branches: [master]
     paths:
       - 'web/**'
       - 'data/connpass/**'
