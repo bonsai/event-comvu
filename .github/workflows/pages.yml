@@ -31,6 +31,21 @@ jobs:
             go run ./cmd/semantic-normalize
           fi
 
+      - name: Validate visualization data
+        run: |
+          test -f web/data/visualization.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("web/data/visualization.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          events = data.get("events") if isinstance(data, dict) else data
+          if not isinstance(events, list) or not events:
+              raise SystemExit("DATA_GATE_FAILED: visualization events are empty")
+          print(f"DATA_GATE_OK: events={len(events)}")
+          PY
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
