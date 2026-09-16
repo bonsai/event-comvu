@@ -1,0 +1,22 @@
+version: 1
+entity: connpass_event
+identity: event_id
+fields:
+  event_id: string
+  person_id: string
+  title: string
+  started_at: datetime
+  ended_at: datetime
+  status: enum[registered,attended,unknown]
+  organizer: string
+  venue: string
+  prefecture: string
+  city: string
+  online: boolean
+  category: string
+  technology: array[string]
+  source_url: string
+  source_title: string
+  image_url: string
+  flyer_url: string
+  retrieved_at: datetime
