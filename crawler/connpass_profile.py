@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Collect public connpass profile event URLs.
-
-Usage:
-  python crawler/connpass_profile.py
-
-The collector follows pagination links on the public profile and emits JSONL.
-It intentionally does not require login credentials.
-"""
+"""Collect public connpass profile event URLs."""
 from __future__ import annotations
 
 import argparse
@@ -20,7 +13,7 @@ from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
 EVENT_RE = re.compile(r"^/event/(\d+)/?(?:participation/)?$")
-PROFILE = "https://connpass.com/user/vonsai/"
+PROFILE = "https://connpass.com/user/v0n5ai/"
 
 
 class LinkParser(HTMLParser):
@@ -62,14 +55,11 @@ def collect(profile: str, max_pages: int = 100) -> list[str]:
             parsed = urlparse(absolute)
             if parsed.netloc != host:
                 continue
-            path = parsed.path
-            match = EVENT_RE.match(path)
+            match = EVENT_RE.match(parsed.path)
             if match:
                 event_id = match.group(1)
                 events[event_id] = f"https://connpass.com/event/{event_id}/"
                 continue
-            # Follow profile pagination only. This catches both ?page=N and
-            # path/query variants without crawling unrelated site pages.
             if parsed.path.rstrip("/") == urlparse(profile).path.rstrip("/"):
                 if "page=" in parsed.query or parsed.query:
                     queue.append(absolute)
