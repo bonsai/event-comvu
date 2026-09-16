@@ -63,16 +63,25 @@ func normalize(e Event) SemanticEvent {
 }
 
 func main() {
-	in := flag.String("in", "data/connpass/vonsai.jsonl", "input JSONL")
+	in := flag.String("in", "data/connpass/v0n5ai.jsonl", "input JSONL")
 	out := flag.String("out", "web/data/visualization.json", "output JSON")
+	expected := flag.Int("expected", 176, "expected canonical population")
 	flag.Parse()
 	info, err := os.Stat(*in); if err != nil || info.Size() == 0 { panic(fmt.Sprintf("DATA_GATE_FAILED: input JSONL missing or empty: %s", *in)) }
 	f, err := os.Open(*in); if err != nil { panic(err) }; defer f.Close()
 	var events []SemanticEvent
+	seen := map[string]bool{}
 	s := bufio.NewScanner(f); s.Buffer(make([]byte, 1024), 1024*1024)
-	for s.Scan() { var e Event; if json.Unmarshal(s.Bytes(), &e) == nil && e.SourceURL != "" { events = append(events, normalize(e)) } }
+	for s.Scan() {
+		var e Event
+		if json.Unmarshal(s.Bytes(), &e) == nil && e.SourceURL != "" {
+			if e.EventID == "" || seen[e.EventID] { panic("DATA_GATE_FAILED: missing or duplicate event_id") }
+			seen[e.EventID] = true
+			events = append(events, normalize(e))
+		}
+	}
 	if err := s.Err(); err != nil { panic(err) }
-	if len(events) == 0 { panic("DATA_GATE_FAILED: no valid events with source_url") }
+	if len(events) != *expected { panic(fmt.Sprintf("POPULATION_GATE_FAILED: expected=%d actual=%d", *expected, len(events))) }
 	data, err := json.MarshalIndent(events, "", "  "); if err != nil { panic(err) }
 	if err := os.MkdirAll("web/data", 0755); err != nil { panic(err) }
 	if err := os.WriteFile(*out, append(data, '\n'), 0644); err != nil { panic(err) }
