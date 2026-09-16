@@ -3,6 +3,8 @@ name: Deploy FE
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - 'worklog/**'
   workflow_dispatch:
 
 permissions:
