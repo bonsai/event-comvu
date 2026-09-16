@@ -1,10 +1,19 @@
-# 03 Preserve evidence
+# ISSUE-03 — SHOW / semantic views
 
-Keep the URLs needed to verify each record.
+## Goal
+加工済みデータをJSON/HTML/APIへ投影する。FEはデータ定義を持たない。
 
-## Acceptance
-- `source_url` required
-- `retrieved_at` required
-- source title retained when available
-- image URL retained when available
-- flyer URL retained when available
+## Views
+
+- Census: 176件の母集団統計
+- Semantic: concept / property / tag / format / place / organizer / time
+- Relation: event間の共有概念・主催者・場所・時間関係
+- Query Result: semantic queryの結果とevidence
+
+## Output
+
+`semantic views → JSON → HTML / API`
+
+## Rule
+
+Cluster / tag / metadataはViewから派生する。UIはsource of truthではない。
