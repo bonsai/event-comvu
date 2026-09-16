@@ -1,0 +1,25 @@
+name: connpass-history-research
+seed:
+  profile_url: https://connpass.com/user/vonsai/
+  target_person: connpass:v0n5ai
+  expected_count: 176
+loop:
+  - collect_profile
+  - extract_event_urls
+  - crawl_event_pages
+  - extract_evidence
+  - normalize_jsonl
+  - validate
+  - statistics
+  - graph
+  - bqmlite
+  - generate_next_research
+outputs:
+  - data/connpass/v0n5ai.jsonl
+  - data/connpass/participation.jsonl
+  - analysis/statistics.json
+  - analysis/graphs
+rules:
+  source_url_required: true
+  retrieved_at_required: true
+  do_not_infer_attendance: true
