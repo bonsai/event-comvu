@@ -1,0 +1,8 @@
+# Event domains
+# 各ドメインrepo自体を正本とし、ここではドメイン名だけを定義する。
+
+domains:
+  - idol
+  - owarai
+  - yose
+  - art
