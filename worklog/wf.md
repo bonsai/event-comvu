@@ -215,3 +215,13 @@ GitHub Actions execution history observed by AW.
   - url: https://github.com/bonsai/event-comvu/actions/runs/35063314404
   - failed gates:
     - deploy / Validate canonical population (failure)
+
+## 2026-09-25T07:24:41Z
+
+- Deploy FE — failure
+  - run: 36107461153
+  - sha: fec7111367e46821ea8150739e81a35c53c77472
+  - event: push
+  - url: https://github.com/bonsai/event-comvu/actions/runs/36107461153
+  - failed gates:
+    - deploy / Validate canonical population (failure)
